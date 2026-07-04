@@ -1,0 +1,101 @@
+! ==========================================
+! ISP
+! ==========================================
+hostname Internet
+
+interface e0/0
+ ip address 200.6.82.2 255.255.255.252
+ no shutdown
+
+interface e0/1
+ ip address 200.6.83.1 255.255.255.252
+ no shutdown
+
+interface e0/2
+ ip address 200.6.84.1 255.255.255.252
+ no shutdown
+
+! ==========================================
+! SERVIDOR VPN
+! ==========================================
+hostname Servidor-VPN
+
+! Interfaces [cite: 22]
+interface e0/0
+ description WAN
+ ip address 200.6.82.1 255.255.255.252
+ no shutdown
+
+interface e0/1
+ description LAN
+ ip address 172.6.82.1 255.255.255.0
+ no shutdown
+
+ip route 0.0.0.0 0.0.0.0 200.6.82.2
+
+! Usuarios VPN [cite: 23]
+username user1 password Usuario0682
+username user2 password Usuario0682
+
+! IKEv1
+crypto isakmp policy 10 ! [cite: 24]
+ encryption 3des
+ hash sha
+ authentication pre-share
+ group 2
+ lifetime 86400
+
+crypto isakmp key Cisco0682$ address 0.0.0.0 0.0.0.0
+
+! IPSec [cite: 25]
+crypto ipsec transform-set TS-L2TP esp-3des esp-sha-hmac
+ mode transport
+
+crypto dynamic-map DMAP-L2TP 10
+ set transform-set TS-L2TP
+ set security-association lifetime seconds 3600
+
+crypto map CMAP-L2TP 10 ipsec-isakmp dynamic DMAP-L2TP
+
+interface e0/0
+ crypto map CMAP-L2TP
+
+! L2TP [cite: 26]
+vpdn enable
+
+vpdn-group L2TP-GROUP
+ accept-dialin
+  protocol l2tp
+  virtual-template 1
+ no l2tp tunnel authentication
+
+ip local pool L2TP-POOL 172.6.82.100 172.6.82.110
+
+interface Virtual-Template1
+ ip unnumbered e0/1
+ peer default ip address pool L2TP-POOL
+ ppp authentication ms-chap-v2 chap
+
+! ==========================================
+! PC LINUX
+! ==========================================
+! sudo ip addr add 172.6.82.10/24 dev eth0
+! sudo ip link set eth0 up
+! sudo ip route add default via 172.6.82.1
+
+! ==========================================
+! Cliente Windows
+! ==========================================
+! Configuración de la interfaz
+! IP:         200.6.83.2
+! Máscara:    255.255.255.252
+! Gateway:    200.6.83.1
+! 
+! Configuración VPN
+! Proveedor:  Windows (integrado)
+! Nombre:     L2TP-LAB
+! Servidor:   200.6.82.1
+! Tipo:       L2TP/IPsec con clave previamente compartida
+! Clave PSK:  Cisco0682$
+! Usuario:    user1
+! Contraseña: Usuario0682
